@@ -26,7 +26,7 @@ The Android port currently supports:
 - Android 7-10 legacy storage permission fallback
 - SDL statically linked into `libja2.so`
 - OpenSL ES audio backend tuning for stable playback
-- Modern Controls input mode, plus legacy absolute mouse and touchscreen modes
+- Modern Controls and Hardware mouse/keyboard input modes, plus legacy absolute mouse and touchscreen modes
 - Modern Controls cursor movement with single-tap left click, two-finger right click, double click, and held-click drag
 - Direct tactical bottom-panel touch handling for panel buttons and inventory drag/drop
 - Tactical UI scaling with adaptive default action-panel and overlay sizing for phones and tablets
@@ -37,6 +37,11 @@ The Android port currently supports:
 - Optional in-game tutorial overlay
 - One-time main menu touch-control hint panel
 - Optional cheat system with launcher and in-game overlay controls
+- Separate Map Screen touch overlay with editable buttons, mouse buttons, and toggle-key modifiers
+- Shopkeeper/Vendor touch overlay support using the tactical button layout
+- SVG icon set and touch overlay rework: 37 icons, shape-aware hit-testing, toggle-keys, sidestep/backstep toggle, reload preset, configurable direct-tap arbitration
+- One-time forced touch-layout refresh for the 1.0.4 default preset, with a localized reset notice
+- Widescreen-aware UI scaling for Auto-Bandage, Shopkeeper, tactical messages, and NPC dialogue
 - Native crash log export next to emergency savegames when a recoverable crash report can be written
 
 ## Repository Layout
@@ -53,9 +58,10 @@ src/            Native JA2 Stracciatella engine and Android JNI bridges
 
 ## Controls
 
-The launcher exposes three input modes:
+The launcher exposes four input modes:
 
 - `Modern Controls`: uses swipes to move a virtual cursor and taps to click.
+- `Hardware mouse/keyboard`: passes physical mouse and keyboard input directly to the JA2 engine. The touch overlay is disabled in this mode.
 - `Absolute mouse` (legacy): maps finger coordinates directly to the game cursor.
 - `Touchscreen` (legacy): forwards native touch events.
 
@@ -68,13 +74,13 @@ In Modern Controls mode:
 - Tactical bottom-panel touches are routed directly to the JA2 interface for panel controls and inventory movement.
 - A two-finger tap on the tactical bottom panel toggles team portraits and single-merc inventory view.
 
-The touch overlay is available in the tactical game screen and can be unlocked in-game to edit button layout and actions.
+The touch overlay is available in the tactical game screen, Shopkeeper/Vendor screens, and the Map Screen. Tactical and Map Screen layouts have separate button configurations; Shopkeeper/Vendor screens use the tactical layout. The overlay can be unlocked in-game to edit button layout, actions, icon sizing, and presets. 37 SVG icons provide crisp rendering at any button size, and buttons use shape-aware hit-testing for precise touch detection. Modifier keys (Shift, Ctrl, Alt) support a sticky toggle mode with visual feedback.
 
 ## Resolution Modes
 
 The Android launcher defaults to safe resolution presets:
 
-- `Modern`: recommended default with readable UI and aspect-correct scaling.
+- `Modern`: recommended default with readable UI and aspect-correct scaling. Non-game screens, menus, and the Map Screen are presented in a centered 4:3 area. Widescreen-specific fixes keep Auto-Bandage, Shopkeeper, tactical messages, and NPC dialogue correctly positioned on wide displays.
 - `High Res (More Map)`: shows more tactical map area with a smaller UI.
 - `Retro`: fixed classic `640x480` presentation.
 
@@ -89,9 +95,12 @@ Common files:
 ```text
 ja2.json              Launcher/game configuration
 touch_buttons.json    Touch overlay layout and settings
+iconset.json          SVG icon metadata (fill, offset, scale, rotation, flip)
+iconmappings.json     Game icon name to iconset entry mappings
 cheats.json           Optional cheat configuration
 tutorial.set          Tutorial visibility preference
 mainmenu_tutorial.set Main menu hint visibility preference
+touch_preset_update_notice.set Touch-layout reset notice preference
 crashlog-latest.txt   Latest native crash report, when available
 ```
 

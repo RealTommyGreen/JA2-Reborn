@@ -4,26 +4,31 @@ All notable changes to this Android port are documented here.
 
 This project follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Dates use `YYYY-MM-DD`.
 
-## Unreleased
+## 2026-06-19 - 1.0.4
 
 ### Added
 
-- Added 37 SVG touch overlay icons from IconConverter (Batches 01–06: Tactical Core, Stances, Combat, Actions, MapScreen Nav, MapScreen Display).
-- Added `SvgIconManager` with canonical 512 px rendering pipeline (`documentViewBox`-based aspect ratio, 430 px inner + 8% padding, white tint via `PorterDuff.Mode.SRC_IN`).
-- Added `iconset.json` and `iconmappings.json` for IconConverter export integration.
-- Added per-button `iconFill` override field to `TouchButtonConfig` with -1 sentinel for iconset default.
-- Added Icon Size runtime slider (30%–200%) to the button editor dialog.
-- Added `lock_closed`/`lock_open` SVG rendering to the lock button.
+- Added a full SVG touch-overlay icon pipeline with 37 bundled icons, `iconset.json`, `iconmappings.json`, per-button icon sizing, and transform metadata.
+- Added a separate editable Map Screen touch-overlay layout with its own presets and default buttons.
+- Added mouse buttons to the Map Screen default layout, positioned like the tactical mouse buttons.
+- Added sticky toggle-key support for modifier buttons, including visible active-state feedback.
+- Added a Hardware mouse/keyboard input mode for direct physical input passthrough.
+- Added a Reload Selected touch preset (`ALT+R`) with a dedicated reload icon.
+- Added configurable Direct Tap Arbitration timing in touch settings.
+- Added a one-time touch-layout reset notice after the forced 1.0.4 default-preset refresh.
 
 ### Changed
 
-- Rewired `drawIcon()`: SVGs now render first via `SvgIconManager`, Canvas drawing is fallback only.
-- Replaced 27 Canvas-fallback branches in `drawIcon()` with SVG-first render-and-return.
-- Reworked map screen button defaults: removed 12 legacy buttons (directional nav, map section hotkeys, ESC/Enter/Space), reduced from 20 to 8 SVG-backed buttons with `icon` fields.
-- `strafe_hold` and `strafe_toggle` now share `alt_movement_hold` SVG icon.
-- Bumped `TOUCH_OVERLAY_CONFIG_VERSION` to 12; migration replaces outdated map screen buttons on version change.
-- Updated lock button to use `computeOuterShapeBounds`/`computeIconShapeBounds` geometry model, matching regular buttons.
-- All default touch preset button sizes scaled per OverlayIconManual Section 3.7.
+- Replaced the bundled touch-overlay default preset and force-refreshes older user layouts once for this default-preset version.
+- Bumped the touch-overlay config schema to 15 and separated default-preset versioning from schema migrations.
+- Reworked icon rendering so SVG icons render first and Canvas drawing is only a fallback.
+- Reworked the Map Screen overlay defaults from legacy keyboard-style buttons to a compact SVG-backed layout.
+- Renamed and localized several touch presets for clearer in-game editing.
+- Rebuilt the touch-overlay lock button as an SVG-backed rounded square.
+- Ordered Hardware mouse/keyboard mode directly below Modern Controls in the launcher dropdown.
+- Kept the touch overlay visible in Shopkeeper/Vendor screens, using the regular tactical button layout.
+- Improved widescreen placement for Auto-Bandage, Shopkeeper/Vendor UI, tactical NPC dialogue, subtitle text, civilian quotes, and tutorial panels.
+- Excluded the D-pad from shape-aware hit-testing so its full touch area remains usable.
 - Reworked the public project documentation.
 - Moved Android build instructions into `docs/BUILDING_ANDROID.md`.
 - Added the Android scaling plan to the public documentation and linked it from the README and Android feature overview.
@@ -32,14 +37,28 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Fixed
 
-- Fixed map screen buttons not showing SVG icons because `icon` fields were missing in `default_touch_preset.json`.
-- Fixed outdated map screen buttons persisting across reinstalls because migration only replaced empty `mapScreenButtons` lists.
-- Fixed lock button still using hardcoded Canvas padlock instead of SVG icons.
+- Fixed Map Screen buttons not appearing after update because migration only filled empty `mapScreenButtons` on schema bump.
+- Fixed Map Screen Inventory toggling item highlight (key I) instead of opening the inventory panel (key ENTER).
+- Fixed SVG icon alignment by correctly converting IconConverter offsets into Android Canvas coordinates.
+- Fixed the touch-overlay lock button being too small and hard to see.
+- Fixed legacy strafe presets triggering grab behavior by replacing them with the `alt_movement_hold` toggle preset.
+- Fixed sticky-toggle key release so forced releases send KeyUp without toggling state again.
+- Fixed sector exit dialog using incorrect dirty-rect coordinates (width/height instead of right/bottom).
+- Fixed the touch-overlay editor showing tactical presets in the Map Screen and Map Screen presets in tactical screens.
+- Fixed hardware mouse mode appearing at the wrong dropdown position.
+- Fixed Auto-Bandage causing a temporary 4:3 layout jump on widescreen displays.
+- Fixed Shopkeeper/Vendor menus being cropped or mis-scaled on wide displays.
+- Fixed the touch-layout reset notice being cropped when shown in the main menu.
+- Fixed direct-tap false positives after cursor movement in touchpad mode.
+- Fixed shape-unaware hit-testing registering false touches in invisible button corners.
+- Fixed D-pad corners becoming unresponsive after shape-aware hit-testing was introduced.
 
-### Known issues
+### Verified
 
-- Map screen Inventory button (`map_inventory`) toggles item highlight (key I) instead of opening the inventory panel — needs a different key mapping or action type.
-- Batches 02 (Tactical Stances) and 03 (Tactical Combat) icons have alignment issues in-game — likely per-icon `iconFill`/`iconOffset` values need tuning from IconConverter export.
+- Ran `:app:testDebugUnitTest`.
+- Ran `:app:externalNativeBuildDebug`.
+- Built `:app:assembleDebug`.
+- Installed the debug APK successfully on Android hardware with `adb install -r`.
 
 ## 2026-05-17
 
