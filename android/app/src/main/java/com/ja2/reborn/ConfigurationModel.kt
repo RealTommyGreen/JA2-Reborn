@@ -97,6 +97,7 @@ class ConfigurationModel : ViewModel() {
     val vanillaGameDir = MutableLiveData<String?>()
     val vanillaGameVersion = MutableLiveData(VanillaVersion.DEFAULT)
     val saveGameDir = MutableLiveData<String?>()
+    val externalizedJsonDir = MutableLiveData<String?>()
     val resolutionMode = MutableLiveData(ResolutionMode.DEFAULT)
     val resolution = MutableLiveData(Resolution.DEFAULT)
     val scalingQuality = MutableLiveData(ScalingQuality.DEFAULT)
@@ -115,6 +116,10 @@ class ConfigurationModel : ViewModel() {
 
     fun setSaveGameDir(saveGameDirSet: String?) {
         saveGameDir.value = saveGameDirSet
+    }
+
+    fun setExternalizedJsonDir(externalizedJsonDirSet: String?) {
+        externalizedJsonDir.value = externalizedJsonDirSet
     }
 
     fun setResolutionMode(mode: ResolutionMode) {

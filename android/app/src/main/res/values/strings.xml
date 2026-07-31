@@ -26,6 +26,9 @@
     <string name="save_game_dir_empty_text">Use default directory</string>
     <string name="save_game_dir_choose_title">Savegame Directory</string>
     <string name="save_game_dir_choose_message">Enter the full path to your savegame directory (leave empty for default):</string>
+    <string name="externalized_json_dir_title_text">Externalized JSON Directory</string>
+    <string name="externalized_json_dir_info_text">Optionally load externalized JSON files from this directory. When no directory is selected, the files bundled with the app are used.</string>
+    <string name="externalized_json_dir_empty_text">Use bundled JSON files</string>
     <string name="game_version_title_text">Language</string>
     <string name="game_version_info_text">
         Select the game version of your original Jagged Alliance 2 game files.

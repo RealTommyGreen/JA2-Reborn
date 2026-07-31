@@ -46,6 +46,10 @@ class DataTabFragment : Fragment() {
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             uri?.let { handleSaveGameDirectoryPicked(it) }
         }
+    private val externalizedJsonDirectoryPicker =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            uri?.let { handleExternalizedJsonDirectoryPicked(it) }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         configurationModel = ViewModelProvider(requireActivity())[ConfigurationModel::class.java]
@@ -97,6 +101,12 @@ class DataTabFragment : Fragment() {
                 binding.saveGameDirValueText.text = saveGameDir
             }
         }
+        configurationModel.externalizedJsonDir.observe(
+            viewLifecycleOwner
+        ) { externalizedJsonDir ->
+            binding.externalizedJsonDirValueText.text = externalizedJsonDir
+                ?: getString(R.string.externalized_json_dir_empty_text)
+        }
         binding.gameDirChooseButton.setOnClickListener {
             gameDirectoryPicker.launch(null)
         }
@@ -118,6 +128,9 @@ class DataTabFragment : Fragment() {
             }
         binding.saveGameDirChooseButton.setOnClickListener {
             saveGameDirectoryPicker.launch(null)
+        }
+        binding.externalizedJsonDirChooseButton.setOnClickListener {
+            externalizedJsonDirectoryPicker.launch(null)
         }
 
         val resolutionModeLabels = resolutionModes.map { LocalizationHelper.getResolutionModeLabel(requireContext(), it) }
@@ -403,6 +416,19 @@ class DataTabFragment : Fragment() {
         }
 
         configurationModel.setSaveGameDir(path)
+        (activity as? LauncherActivity)?.persistJA2Configuration()
+    }
+
+    private fun handleExternalizedJsonDirectoryPicked(uri: Uri) {
+        persistDirectoryPermission(uri)
+        val path = uri.toExternalStoragePath()
+        val directory = path?.let(::File)
+        if (directory?.isDirectory != true) {
+            Toast.makeText(requireContext(), R.string.directory_picker_path_error, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        configurationModel.setExternalizedJsonDir(directory.absolutePath)
         (activity as? LauncherActivity)?.persistJA2Configuration()
     }
 

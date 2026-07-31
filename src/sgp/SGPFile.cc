@@ -4,7 +4,6 @@
 
 #include <string_theory/string>
 #include <string_theory/format>
-#include <string_view>
 #include <utility>
 
 #define SDL_RWOPS_SGP 222
@@ -17,7 +16,7 @@ void DeleteSGPFile(SGPFile *file)
 class SGPFileException : public IoException
 {
 public:
-	SGPFileException(std::string_view errorMessage,
+	SGPFileException(const char* errorMessage,
 	                 ST::string const& filename,
 	                 RustPointer<char> const& rustError)
 		: IoException{ ST::format("SGPFile: '{}' {}: {}",
