@@ -36,6 +36,7 @@ pub struct Ja2JsonContent {
     data_dir: Option<PathBuf>,
     game_dir: Option<PathBuf>,
     save_game_dir: Option<PathBuf>,
+    externalized_json_dir: Option<PathBuf>,
     mods: Option<Vec<String>>,
     res: Option<Resolution>,
     brightness: Option<f32>,
@@ -93,6 +94,7 @@ impl Ja2Json {
 
         copy_to!(content.game_dir, engine_options.vanilla_game_dir);
         copy_to!(content.save_game_dir, engine_options.save_game_dir);
+        engine_options.externalized_json_dir = content.externalized_json_dir;
         copy_to!(
             content
                 .mods
@@ -122,6 +124,7 @@ impl Ja2Json {
             data_dir: None,
             game_dir: None,
             save_game_dir: None,
+            externalized_json_dir: None,
             mods: None,
             res: None,
             brightness: None,
@@ -134,6 +137,7 @@ impl Ja2Json {
 
         copy_to!(engine_options.vanilla_game_dir, content.game_dir);
         copy_to!(engine_options.save_game_dir, content.save_game_dir);
+        content.externalized_json_dir = engine_options.externalized_json_dir.clone();
         copy_to!(engine_options.mods, content.mods);
         copy_to!(engine_options.resolution, content.res);
         copy_to!(engine_options.brightness, content.brightness);
@@ -290,6 +294,37 @@ mod tests {
             .unwrap();
 
         assert_eq!(engine_options.vanilla_game_dir, Path::new("/dd"));
+    }
+
+    #[test]
+    fn apply_to_engine_options_should_set_externalized_json_dir() {
+        let mut engine_options = EngineOptions::default();
+        let temp_dir = write_temp_folder_with_ja2_json(
+            b"{ \"externalized_json_dir\": \"/custom/externalized\" }",
+        );
+        let ja2json = Ja2Json::from_stracciatella_home(temp_dir.path().join(".ja2"));
+
+        ja2json
+            .apply_to_engine_options(&mut engine_options)
+            .unwrap();
+
+        assert_eq!(
+            engine_options.externalized_json_dir,
+            Some(PathBuf::from("/custom/externalized"))
+        );
+    }
+
+    #[test]
+    fn apply_to_engine_options_should_leave_externalized_json_dir_unset_when_missing() {
+        let mut engine_options = EngineOptions::default();
+        let temp_dir = write_temp_folder_with_ja2_json(b"{}");
+        let ja2json = Ja2Json::from_stracciatella_home(temp_dir.path().join(".ja2"));
+
+        ja2json
+            .apply_to_engine_options(&mut engine_options)
+            .unwrap();
+
+        assert_eq!(engine_options.externalized_json_dir, None);
     }
 
     #[test]

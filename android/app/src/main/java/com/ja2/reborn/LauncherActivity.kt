@@ -393,6 +393,7 @@ class LauncherActivity : AppCompatActivity() {
 
             configurationModel.setVanillaGameDir(json.vanillaGameDir)
             configurationModel.setSaveGameDir(json.saveGameDir)
+            configurationModel.setExternalizedJsonDir(json.externalizedJsonDir)
 
             if (json.vanillaGameVersion != null) {
                 configurationModel.setVanillaGameVersion(json.vanillaGameVersion)
@@ -482,15 +483,16 @@ class LauncherActivity : AppCompatActivity() {
         }
 
         val json = Ja2Json(
-            configurationModel.vanillaGameDir.value,
-            configurationModel.vanillaGameVersion.value,
-            configurationModel.saveGameDir.value,
-            configurationModel.resolution.value,
-            configurationModel.resolutionMode.value,
-            configurationModel.scalingQuality.value,
-            configurationModel.mouseMode.value,
-            configurationModel.expertSettings.value,
-            configurationModel.debug.value
+            vanillaGameDir = configurationModel.vanillaGameDir.value,
+            vanillaGameVersion = configurationModel.vanillaGameVersion.value,
+            saveGameDir = configurationModel.saveGameDir.value,
+            externalizedJsonDir = configurationModel.externalizedJsonDir.value,
+            resolution = configurationModel.resolution.value,
+            resolutionMode = configurationModel.resolutionMode.value,
+            scalingQuality = configurationModel.scalingQuality.value,
+            mouseMode = configurationModel.mouseMode.value,
+            expertSettings = configurationModel.expertSettings.value,
+            debug = configurationModel.debug.value
         )
         val parentDir = File(ja2JsonPath).parentFile
         if (parentDir?.exists() != true) {

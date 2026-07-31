@@ -167,6 +167,59 @@
                     android:textAllCaps="false"
                     android:textColor="#FFFFF3E6" />
             </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/launcher_panel"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/externalized_json_dir_title_text"
+                    android:textColor="#FFFFF3E6"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/externalized_json_dir_info_text"
+                    android:textColor="#DDE7D6C4"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/externalizedJsonDirValueText"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/launcher_surface"
+                    android:ellipsize="middle"
+                    android:gravity="center_vertical"
+                    android:maxLines="1"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:text="@string/externalized_json_dir_empty_text"
+                    android:textColor="#FFF3E6D7"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/externalizedJsonDirChooseButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/launcher_button"
+                    android:maxLines="1"
+                    android:text="@string/select_directory_button_label"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFF3E6" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout

@@ -65,6 +65,59 @@ pub trait VfsLayer: fmt::Debug + fmt::Display + Send + Sync {
     }
 }
 
+/// Restricts a VFS layer to JSON or non-JSON paths. This keeps a user-selected
+/// externalized directory from supplying SLF or other non-JSON resources.
+#[derive(Debug)]
+struct JsonFilteredLayer {
+    inner: Arc<dyn VfsLayer>,
+    allow_json: bool,
+}
+
+impl JsonFilteredLayer {
+    fn permits(&self, path: &Nfc) -> bool {
+        let is_json = path
+            .as_str()
+            .rsplit('.')
+            .next()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("json"));
+        is_json == self.allow_json
+    }
+}
+
+impl fmt::Display for JsonFilteredLayer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let filter = if self.allow_json { "JSON" } else { "non-JSON" };
+        write!(f, "{} files in {}", filter, self.inner)
+    }
+}
+
+impl VfsLayer for JsonFilteredLayer {
+    fn open(&self, file_path: &Nfc) -> io::Result<Box<dyn VfsFile>> {
+        if self.permits(file_path) {
+            self.inner.open(file_path)
+        } else {
+            Err(ErrorKind::NotFound.into())
+        }
+    }
+
+    fn exists(&self, file_path: &Nfc) -> io::Result<bool> {
+        if self.permits(file_path) {
+            self.inner.exists(file_path)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn read_dir(&self, file_path: &Nfc) -> io::Result<BTreeSet<Nfc>> {
+        Ok(self
+            .inner
+            .read_dir(file_path)?
+            .into_iter()
+            .filter(|path| self.permits(path))
+            .collect())
+    }
+}
+
 /// A virtual filesystem that mounts other filesystems.
 #[derive(Debug, Default)]
 pub struct Vfs {
@@ -100,6 +153,59 @@ impl Vfs {
         })?;
         self.entries.push(dir_fs.clone());
         Ok(dir_fs)
+    }
+
+    fn add_json_filtered_layer(
+        &mut self,
+        inner: Arc<dyn VfsLayer>,
+        allow_json: bool,
+    ) -> Arc<dyn VfsLayer> {
+        let layer: Arc<dyn VfsLayer> = Arc::new(JsonFilteredLayer { inner, allow_json });
+        self.entries.push(layer.clone());
+        layer
+    }
+
+    fn add_externalized_layers(
+        &mut self,
+        bundled_layer: Arc<dyn VfsLayer>,
+        override_dir: Option<&Path>,
+    ) {
+        if let Some(override_dir) = override_dir {
+            let override_result = DirFs::new(override_dir).map(|layer| layer as Arc<dyn VfsLayer>);
+            self.add_externalized_layers_from_result(
+                bundled_layer,
+                override_dir,
+                override_result,
+            );
+        } else {
+            self.entries.push(bundled_layer);
+        }
+    }
+
+    fn add_externalized_layers_from_result(
+        &mut self,
+        bundled_layer: Arc<dyn VfsLayer>,
+        override_dir: &Path,
+        override_result: io::Result<Arc<dyn VfsLayer>>,
+    ) {
+        match override_result {
+            Ok(override_layer) => {
+                info!(
+                    "Loading externalized JSON from {}",
+                    override_dir.display()
+                );
+                self.add_json_filtered_layer(override_layer, true);
+                self.add_json_filtered_layer(bundled_layer, false);
+            }
+            Err(error) => {
+                warn!(
+                    "Could not load externalized JSON from {}: {}. Falling back to bundled assets",
+                    override_dir.display(),
+                    error
+                );
+                self.entries.push(bundled_layer);
+            }
+        }
     }
 
     /// Adds a filesystem layer backed by a SLF file.
@@ -238,19 +344,42 @@ impl Vfs {
             }
         }
 
-        // Next is externalized data dir (required)
+        // Next is externalized data (required). When an override is configured,
+        // only JSON comes from it; bundled non-JSON files remain available.
         #[cfg(not(target_os = "android"))]
         let externalized_layer = {
-            let externalized_dir = fs::resolve_existing_components(
+            let bundled_dir = fs::resolve_existing_components(
                 Path::new(EXTERNALIZED_DIR),
                 Some(&engine_options.assets_dir),
                 true,
             );
-            self.add_dir(&externalized_dir)
+            let bundled_layer = DirFs::new(&bundled_dir).map_err(|error| VfsInitError {
+                path: bundled_dir,
+                error,
+            })?;
+            self.add_externalized_layers(
+                bundled_layer.clone(),
+                engine_options.externalized_json_dir.as_deref(),
+            );
+            Ok::<Arc<dyn VfsLayer>, VfsInitError>(bundled_layer)
         }?;
-        // On android the externalized dir comes from APK assets
+        // On Android, the APK supplies all non-JSON externalized resources.
         #[cfg(target_os = "android")]
-        let externalized_layer = self.add_android_assets(&Path::new(EXTERNALIZED_DIR))?;
+        let externalized_layer = {
+            let bundled_layer = android::AssetManagerFs::new(Path::new(EXTERNALIZED_DIR))
+                .map_err(|error| VfsInitError {
+                    path: PathBuf::from(EXTERNALIZED_DIR),
+                    error,
+                })?;
+            if engine_options.externalized_json_dir.is_none() {
+                info!("Loading externalized JSON bundled in the APK");
+            }
+            self.add_externalized_layers(
+                bundled_layer.clone(),
+                engine_options.externalized_json_dir.as_deref(),
+            );
+            bundled_layer
+        };
 
         // Next is vanilla data dir (required)
         let data_dir_layer = self.add_dir(&vanilla_data_dir)?;
@@ -467,11 +596,123 @@ fn map_not_found_to_option<T>(result: io::Result<T>) -> io::Result<Option<T>> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::{self, Read};
+    use std::path::Path;
+    use std::sync::Arc;
+
     use tempfile::{TempDir, tempdir};
 
-    use crate::{config::EngineOptions, mods::ModManager};
+    use crate::{config::EngineOptions, mods::ModManager, unicode::Nfc};
 
-    use super::Vfs;
+    use super::{DirFs, Vfs, VfsLayer};
+
+    #[test]
+    fn externalized_override_should_only_supply_json_files() {
+        let (mut engine_options, temp_dir) = create_test_engine_options();
+        let override_dir = temp_dir.path().join("json-override");
+        std::fs::create_dir(&override_dir).expect("override dir");
+        std::fs::write(override_dir.join("items.json"), b"override").expect("override json");
+        std::fs::write(override_dir.join("override.slf"), b"override slf").expect("override slf");
+
+        let bundled_dir = engine_options.assets_dir.join("externalized");
+        std::fs::write(bundled_dir.join("items.json"), b"bundled").expect("bundled json");
+        std::fs::write(bundled_dir.join("bundled.slf"), b"bundled slf").expect("bundled slf");
+        engine_options.externalized_json_dir = Some(override_dir);
+
+        let data_path = engine_options.vanilla_game_dir.join("data");
+        std::fs::create_dir(&data_path).expect("data dir");
+        std::fs::write(data_path.join("empty.slf"), EMPTY_SLF_BYTES).expect("empty slf");
+
+        let mod_manager = ModManager::new_unchecked(&engine_options);
+        let mut vfs = Vfs::new();
+        vfs.init(&engine_options, &mod_manager).unwrap();
+
+        let mut json = String::new();
+        vfs.open(&Nfc::caseless_path("items.json"))
+            .unwrap()
+            .read_to_string(&mut json)
+            .unwrap();
+        assert_eq!(json, "override");
+
+        let mut slf = String::new();
+        vfs.open(&Nfc::caseless_path("bundled.slf"))
+            .unwrap()
+            .read_to_string(&mut slf)
+            .unwrap();
+        assert_eq!(slf, "bundled slf");
+        assert!(vfs.open(&Nfc::caseless_path("override.slf")).is_err());
+    }
+
+    #[test]
+    fn bundled_externalized_slf_should_be_used_without_json_override() {
+        let (engine_options, _temp_dir) = create_test_engine_options();
+        let bundled_dir = engine_options.assets_dir.join("externalized");
+        std::fs::write(bundled_dir.join("bundled.slf"), b"bundled slf").expect("bundled slf");
+
+        let data_path = engine_options.vanilla_game_dir.join("data");
+        std::fs::create_dir(&data_path).expect("data dir");
+        std::fs::write(data_path.join("empty.slf"), EMPTY_SLF_BYTES).expect("empty slf");
+
+        let mod_manager = ModManager::new_unchecked(&engine_options);
+        let mut vfs = Vfs::new();
+        vfs.init(&engine_options, &mod_manager).unwrap();
+
+        let mut slf = String::new();
+        vfs.open(&Nfc::caseless_path("bundled.slf"))
+            .unwrap()
+            .read_to_string(&mut slf)
+            .unwrap();
+        assert_eq!(slf, "bundled slf");
+    }
+
+    #[test]
+    fn invalid_externalized_override_should_fall_back_to_bundled_json() {
+        let (mut engine_options, temp_dir) = create_test_engine_options();
+        let bundled_dir = engine_options.assets_dir.join("externalized");
+        std::fs::write(bundled_dir.join("items.json"), b"bundled").expect("bundled json");
+        engine_options.externalized_json_dir = Some(temp_dir.path().join("missing-override"));
+
+        let data_path = engine_options.vanilla_game_dir.join("data");
+        std::fs::create_dir(&data_path).expect("data dir");
+        std::fs::write(data_path.join("empty.slf"), EMPTY_SLF_BYTES).expect("empty slf");
+
+        let mod_manager = ModManager::new_unchecked(&engine_options);
+        let mut vfs = Vfs::new();
+        vfs.init(&engine_options, &mod_manager).unwrap();
+
+        let mut json = String::new();
+        vfs.open(&Nfc::caseless_path("items.json"))
+            .unwrap()
+            .read_to_string(&mut json)
+            .unwrap();
+        assert_eq!(json, "bundled");
+    }
+
+    #[test]
+    fn permission_error_loading_externalized_override_should_fall_back_to_bundled_json() {
+        let temp_dir = tempdir().expect("temp dir");
+        let bundled_dir = temp_dir.path().join("bundled");
+        std::fs::create_dir(&bundled_dir).expect("bundled dir");
+        std::fs::write(bundled_dir.join("items.json"), b"bundled").expect("bundled json");
+        let bundled_layer: Arc<dyn VfsLayer> = DirFs::new(&bundled_dir).unwrap();
+
+        let mut vfs = Vfs::new();
+        vfs.add_externalized_layers_from_result(
+            bundled_layer,
+            Path::new("permission-denied-override"),
+            Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "permission denied for test",
+            )),
+        );
+
+        let mut json = String::new();
+        vfs.open(&Nfc::caseless_path("items.json"))
+            .unwrap()
+            .read_to_string(&mut json)
+            .unwrap();
+        assert_eq!(json, "bundled");
+    }
 
     #[test]
     fn missing_game_data_dir_should_fail() {

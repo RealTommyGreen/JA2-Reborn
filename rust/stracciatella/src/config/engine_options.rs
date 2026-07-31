@@ -57,6 +57,8 @@ pub struct EngineOptions {
     pub vanilla_game_dir: PathBuf,
     /// Path to the assets directory included with Stracciatella
     pub assets_dir: PathBuf,
+    /// Optional directory containing externalized JSON files
+    pub externalized_json_dir: Option<PathBuf>,
     /// Path to the save game directory (usually within stracciatella_home)
     pub save_game_dir: PathBuf,
     /// List of enabled mods
@@ -93,6 +95,7 @@ impl Default for EngineOptions {
             stracciatella_home: PathBuf::from(""),
             vanilla_game_dir: PathBuf::from(""),
             assets_dir: PathBuf::from(""),
+            externalized_json_dir: None,
             save_game_dir: PathBuf::from(""),
             mods: vec![],
             resolution: Resolution::default(),
@@ -135,6 +138,9 @@ impl EngineOptions {
         engine_options.stracciatella_home =
             resolve_existing_components(stracciatella_home, None, true);
         engine_options.assets_dir = resolve_existing_components(&get_assets_dir(), None, true);
+        engine_options.externalized_json_dir = engine_options
+            .externalized_json_dir
+            .map(|path| resolve_existing_components(&path, None, true));
         engine_options.vanilla_game_dir =
             resolve_existing_components(&engine_options.vanilla_game_dir, None, true);
 
