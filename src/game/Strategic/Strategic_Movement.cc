@@ -60,7 +60,7 @@ static GROUP* gpPendingSimultaneousGroup = NULL;
 
 extern BOOLEAN gubNumAwareBattles;
 extern INT8 SquadMovementGroups[ ];
-extern INT8 gubVehicleMovementGroups[ ];
+extern UINT8 gubVehicleMovementGroups[];
 
 BOOLEAN gfDelayAutoResolveStart = FALSE;
 
@@ -3628,4 +3628,3 @@ bool GroupHasInTransitDeadOrPOWMercs(GROUP const& g)
 	}
 	return false;
 }
-

@@ -47,6 +47,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <stdexcept>
 #include <math.h>
 
 // THESE 3 DIFFICULTY FACTORS MUST ALWAYS ADD UP TO 100% EXACTLY!!!
@@ -979,9 +980,16 @@ void InternalTacticalRemoveSoldier(SOLDIERTYPE& s, BOOLEAN const fRemoveVehicle)
 
 	if (s.ubScheduleID) DeleteSchedule(s.ubScheduleID);
 
-	if (EnterableVehicle(s) && fRemoveVehicle)
+	if ((s.uiStatusFlags & SOLDIER_VEHICLE) && fRemoveVehicle)
 	{
-		RemoveVehicleFromList(GetVehicle(s.bVehicleID));
+		try
+		{
+			RemoveVehicleFromList(GetVehicle(s.bVehicleID));
+		}
+		catch (std::logic_error const&)
+		{
+			// Tanks added in the map editor need not have a vehicle-list entry.
+		}
 	}
 
 	if (s.ubBodyType == CROW) HandleCrowLeave(&s);

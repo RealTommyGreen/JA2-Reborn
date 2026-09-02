@@ -721,11 +721,11 @@ static INT32 ShowVehicles(const SGPSector& sSector, INT32 icon_pos)
 	{
 		// skip the chopper, it has its own icon and displays in airspace mode
 		if (IsHelicopter(v))                          continue;
+		if (v.fDestroyed)                             continue;
 		if (v.sSector != sSector)                     continue;
 		if (PlayerIDGroupInMotion(v.ubMovementGroup)) continue;
 
-		SOLDIERTYPE const& vs = GetSoldierStructureForVehicle(v);
-		if (vs.bTeam != OUR_TEAM) continue;
+		if (auto s = FindSoldierType(v); !s || s->bTeam != OUR_TEAM) continue;
 
 		DrawMapBoxIcon(guiCHARICONS, SMALL_WHITE_BOX, sSector, icon_pos++);
 	}
